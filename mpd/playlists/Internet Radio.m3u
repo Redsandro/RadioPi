@@ -1,0 +1,41 @@
+#EXTM3U
+
+#EXTINF:0,NPO 3FM Serious Radio
+http://icecast.omroep.nl/3fm-bb-mp3
+
+#EXTINF:0,NPO 3FM Alternative
+http://icecast.omroep.nl/3fm-alternative-mp3
+
+#EXTINF:0,BNR Nieuwsradio
+http://icecast-bnr.cdp.triple-it.nl/bnr_mp3_96_06
+
+#EXTINF:0,100% NL
+http://stream.100p.nl/100pctnl.mp3
+
+#EXTINF:0,Arrow Classic Rock Radio
+http://91.221.151.155:80/
+
+#EXTINF:0,Aardschok powered by Penguin Radio
+http://178.18.137.248:80/
+
+#EXTINF:0,SurfRockRadio.com
+http://stardust.wavestreamer.com:5485/Live
+
+#EXTINF:0,Happy Hardcore Radio
+http://u4.happyhardcore.com:7762/
+
+#EXTINF:0,PSY Radio FM - Psytrance
+http://81.88.36.42:8030/
+
+#EXTINF:0,VRT Radio MNM
+http://mp3.streampower.be/mnm-high
+
+#EXTINF:0,VRT Studio Brussel
+http://mp3.streampower.be/stubru-high.mp3
+
+#EXTINF:0,Fresh FM
+http://stream12.freshfmonline.com/
+
+#EXTINF:0,Q-Music
+http://icecast-qmusic.cdp.triple-it.nl/Qmusic_nl_live_96.mp3
+
