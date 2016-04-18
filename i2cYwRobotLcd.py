@@ -32,12 +32,16 @@ class i2cYwRobotLcd:
 	LCD_OFF					= 0x00
 	LCD_BACKLIGHT			= LCD_ON
 
-	# ENABLE bit
-	ENABLE = 0b00000100
+	# Display controls
+	LCD_DISPLAYON           = 0x04
+	LCD_DISPLAYOFF          = 0x00
+	LCD_CURSORON            = 0x02
+	LCD_CURSOROFF           = 0x00
+	LCD_BLINKON             = 0x01
+	LCD_BLINKOFF            = 0x00
 
 	# Timing constants
-	E_PULSE = 0.0005
-	E_DELAY = 0.0005
+	E_DELAY					= 0.001
 
 	# Commands
 	LCD_CLEARDISPLAY        = 0x01
@@ -81,31 +85,23 @@ class i2cYwRobotLcd:
 		bits_high = mode | (bits & 0xF0) | self.LCD_BACKLIGHT
 		bits_low = mode | ((bits<<4) & 0xF0) | self.LCD_BACKLIGHT
 
-		# High bits
-		self.bus.write_byte(self.I2C_ADDR , bits_high)
 		self.lcd_toggle_enable(bits_high)
-
-		# Low bits
-		self.bus.write_byte(self.I2C_ADDR , bits_low)
 		self.lcd_toggle_enable(bits_low)
+
+	def lcd_toggle_enable(self, bits):
+			# I don't get this. Can't do anything without it though. I should ask Matt Hawkins some day.
+			self.bus.write_byte(self.I2C_ADDR, (bits | self.LCD_DISPLAYON))
+			self.bus.write_byte(self.I2C_ADDR, (bits & ~self.LCD_DISPLAYON))
 
 	def toggleBacklight(self, enable=True):
 
 		self.LCD_BACKLIGHT = self.LCD_ON if (enable) else self.LCD_OFF
 
 		bits_high = self.LCD_CMD | (self.CURSOR_OFF & 0xF0) | self.LCD_BACKLIGHT
-		bits_low = self.LCD_CMD | ((0x0C<<4) & 0xF0) | self.LCD_BACKLIGHT
+		bits_low = self.LCD_CMD | ((self.CURSOR_OFF<<4) & 0xF0) | self.LCD_BACKLIGHT
 
 		self.bus.write_byte(self.I2C_ADDR, bits_high)
 		self.bus.write_byte(self.I2C_ADDR, bits_low)
-
-	def lcd_toggle_enable(self, bits):
-		# Toggle self.ENABLE
-		time.sleep(self.E_DELAY)
-		self.bus.write_byte(self.I2C_ADDR, (bits | self.ENABLE))
-		time.sleep(self.E_PULSE)
-		self.bus.write_byte(self.I2C_ADDR, (bits & ~self.ENABLE))
-		time.sleep(self.E_DELAY)
 
 	def writeString(self, message, line=0):
 		''' Send string to display '''

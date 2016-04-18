@@ -43,17 +43,33 @@ scrollPos = 0
 scrollDelay = -4
 buf_time = ''
 buf_title = ''
+currTitle = ''
 
 
 
 # Init mpc
 def mpcReset():
 	lcd.init();
-	scrollPos = scrollDelay
 	sub.Popen(['mpc', 'clear'])
 	sub.Popen(['mpc', 'load', 'Internet Radio'])	# Make sure the playlist is available.
 	sub.Popen(['mpc', 'repeat', 'on'])
 	sub.Popen(['mpc', 'play'])
+
+def getTitle():
+	global currTitle
+	proc = sub.Popen(['mpc', 'current'], stdout=sub.PIPE)
+	out, err = proc.communicate()
+
+	# Writing to I2C is slow though, so only write the title when it changed.
+	if (out != currTitle):
+		currTitle = out
+
+def btnPlay(_state=0):
+	global wait, state, scrollPos, scrollDelay
+	wait = 6
+	state = _state
+	lcd.init();
+	scrollPos = scrollDelay
 
 mpcReset()
 
@@ -78,23 +94,13 @@ while True:
 	# Prev - GPIO pin 11
 	elif GPIO.input(11):
 		if state != 11:
-			wait = 6
-			state = 11
-			#if (scrollPos > 0):
-			#	scrollPos = scrollPos - 40
-			lcd.init();
-			scrollPos = scrollDelay
+			btnPlay(11)
 			print "Play previous"
 			sub.Popen(['mpc', 'prev'])
 	# Next - GPIO pin 12
 	elif GPIO.input(12):
 		if state != 12:
-			wait = 6
-			state = 12
-			#if (scrollPos > 0):
-			#	scrollPos = scrollPos - 40
-			lcd.init();
-			scrollPos = scrollDelay
+			btnPlay(12)
 			print "Play next"
 			sub.Popen(['mpc', 'next'])
 
@@ -125,13 +131,15 @@ while True:
 			# Get the title from MPC. Yes, we do this every second.
 			# Sometimes it takes a second before the name is known.
 			# And some streams change the title, kinda like RDS.
-			proc = sub.Popen(['mpc', 'current'], stdout=sub.PIPE)
-			out, err = proc.communicate()
+			getTitle()
 
-			# Writing to I2C is slow though, so only write the title when it changed.
-			if (out != buf_title):
-				buf_title = out
-				lcd.writeString(buf_title, 0)
+	if (buf_title != currTitle):
+		if (wait == 0 and scrollPos == lcd.LCD_BUF_WIDTH):
+			scrollPos = 0
+			lcd.init()
+		else:
+			buf_title = currTitle
+			lcd.writeString(buf_title, 0)
 
 	# This loop needs to sleep as much as possible while still being snappy.
 	# Not sleeping makes the buttons very sensitive, but time() will be called too often, causing python to use 80% cpu.
