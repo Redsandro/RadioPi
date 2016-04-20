@@ -33,6 +33,9 @@ http://mp3.streampower.be/mnm-high
 #EXTINF:0,VRT Studio Brussel
 http://mp3.streampower.be/stubru-high.mp3
 
+#EXTINF:0,Radio Veronica
+http://8573.live.streamtheworld.com:80/VERONICA_SC
+
 #EXTINF:0,Fresh FM
 http://stream12.freshfmonline.com/
 

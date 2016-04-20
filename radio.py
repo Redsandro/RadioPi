@@ -24,32 +24,38 @@ import time
 from datetime import datetime
 from i2cYwRobotLcd import i2cYwRobotLcd
 
+BTN_PREV = 11
+BTN_NEXT = 12
+
 lcd = i2cYwRobotLcd()
 
 GPIO.setmode(GPIO.BOARD)
-GPIO.setup(11, GPIO.IN)
-GPIO.setup(12, GPIO.IN)
+GPIO.setup(BTN_PREV, GPIO.IN)
+GPIO.setup(BTN_NEXT, GPIO.IN)
 
 print "GPIO version %s loaded." % (GPIO.VERSION)
 
 
 
-state = 0
+STATE = 0
 wait = 0
-currTime = 0
-eventTime = 0
-eventTimeSec = 0
+timeNow = 0
+timeLoop = 0
+timeLoopSec = 0
 scrollPos = 0
 scrollDelay = -4
 buf_time = ''
 buf_title = ''
 currTitle = ''
+timeReset = 0
+timeStr = 0
+timeBuff = 0
 
 
 
 # Init mpc
 def mpcReset():
-	lcd.init();
+	lcd.init()
 	sub.Popen(['mpc', 'clear'])
 	sub.Popen(['mpc', 'load', 'Internet Radio'])	# Make sure the playlist is available.
 	sub.Popen(['mpc', 'repeat', 'on'])
@@ -64,10 +70,9 @@ def getTitle():
 	if (out != currTitle):
 		currTitle = out
 
-def btnPlay(_state=0):
-	global wait, state, scrollPos, scrollDelay
-	wait = 6
-	state = _state
+def btnPlay(_STATE=0):
+	global wait, STATE, scrollPos, scrollDelay
+	STATE = _STATE
 	lcd.init();
 	scrollPos = scrollDelay
 
@@ -75,41 +80,56 @@ mpcReset()
 
 
 
-# The loop that controls the app
+def btnPressed(channel):
+	global timeReset
+	timeEv = time.time()
+	print '%d pressed' % channel
+
+	if GPIO.input(BTN_PREV) and GPIO.input(BTN_NEXT) and (timeReset + 2) < timeEv:
+		print 'RESET!'
+		timeReset = time.time()
+		mpcReset()
+		return 0
+	elif GPIO.input(BTN_PREV):
+		print "Play Previous"
+		btnPlay(BTN_PREV)
+		sub.Popen(['mpc', 'prev'])
+	elif GPIO.input(BTN_NEXT):
+		print "Play Next"
+		btnPlay(BTN_NEXT)
+		sub.Popen(['mpc', 'next'])
+
+
+GPIO.add_event_detect(BTN_PREV, GPIO.RISING, callback=btnPressed, bouncetime=200)
+GPIO.add_event_detect(BTN_NEXT, GPIO.RISING, callback=btnPressed, bouncetime=200)
+
+
+
 while True:
 
-	# Ignore buttons for a moment
-	if wait > 0:
-		wait = wait - 1
-	elif wait == 0:
-		state = 0
+	# Base actions on certain intervals
+	timeNow = time.time()
 
-	# Reset - Pressing both buttons
-	if GPIO.input(11) and GPIO.input(12):
-		wait = 20
-		if state != 1112:
-			state = 1112
-			print "RESET!"
-			mpcReset()
-	# Prev - GPIO pin 11
-	elif GPIO.input(11):
-		if state != 11:
-			btnPlay(11)
-			print "Play previous"
-			sub.Popen(['mpc', 'prev'])
-	# Next - GPIO pin 12
-	elif GPIO.input(12):
-		if state != 12:
-			btnPlay(12)
-			print "Play next"
-			sub.Popen(['mpc', 'next'])
-
-	# Little trickery to execute intensive commands only every 500 ms.
-	if (currTime <= eventTime):
-		# Update the time every 100 ms.
-		currTime = time.time()
+	# Calculate clock
+	if (round(timeNow % 1) == 0):
+		timeStr = datetime.now().strftime('%b %d  %H:%M:%S')
 	else:
-		eventTime = currTime + 0.50
+		timeStr = datetime.now().strftime('%b %d  %H:%M %S')
+
+	# Write clock if buffer updated
+	if (timeStr != timeBuff):
+		timeBuff = timeStr
+
+		# Write clock to LCD if we're done scrolling.
+		if (scrollPos >= lcd.LCD_BUF_WIDTH):
+			lcd.writeString(timeStr, 1)
+		else:
+			lcd.writeString(' ', 1)
+
+
+	# Execute every 500 ms
+	if (timeNow > timeLoop):
+		timeLoop = timeNow + 0.5
 
 		# Scroll the contents of the display once.
 		if (scrollPos < lcd.LCD_BUF_WIDTH):
@@ -117,22 +137,16 @@ while True:
 				lcd.scrollDisplayLeft()
 			scrollPos = scrollPos + 1
 
-		# Code to execute only once every 1000 ms.
-		if (currTime > eventTimeSec):
-			eventTimeSec = currTime + 1.0
+	# Execute every 1000 ms
+	if (timeNow > timeLoopSec):
+		timeLoopSec = timeNow + 1.0
 
-			# Add clock if we're done scrolling.
-			currDateTime = datetime.now().strftime('%b %d  %H:%M:%S')
-			if (scrollPos >= lcd.LCD_BUF_WIDTH):
-				lcd.writeString(currDateTime, 1)
-			else:
-				lcd.writeString(' ', 1)
+		# Get the title from MPC. Yes, we do this every second.
+		# Sometimes it takes a second before the name is known.
+		# And some streams change the title, kinda like RDS.
+		getTitle()
 
-			# Get the title from MPC. Yes, we do this every second.
-			# Sometimes it takes a second before the name is known.
-			# And some streams change the title, kinda like RDS.
-			getTitle()
-
+	# Write title to LCD only when buffer was updated
 	if (buf_title != currTitle):
 		if (wait == 0 and scrollPos == lcd.LCD_BUF_WIDTH):
 			scrollPos = 0
@@ -143,4 +157,4 @@ while True:
 
 	# This loop needs to sleep as much as possible while still being snappy.
 	# Not sleeping makes the buttons very sensitive, but time() will be called too often, causing python to use 80% cpu.
-	time.sleep(0.1)
+	time.sleep(0.10)
