@@ -3,7 +3,7 @@
 # @file Simple loop to control MPD on the Raspberry Pi.
 # @author Sander Steenhuis AKA Redsandro <http://www.redsandro.com/>
 # @since 2013-04-07
-# Last modified: 2016-04-18
+# Last modified: 2016-04-20
 #
 # This is free software, and is released under the terms of the GPL version 2 or (at your option) any later version.
 # See license.txt or <http://www.gnu.org/licenses/>.
@@ -20,8 +20,10 @@ New titles will scroll once, then a clock appears for convenience.
 
 import RPi.GPIO as GPIO
 import subprocess as sub
+import sys
 import time
 from datetime import datetime
+from threading import Thread, Event
 from i2cYwRobotLcd import i2cYwRobotLcd
 
 BTN_PREV = 11
@@ -45,38 +47,68 @@ timeLoopSec = 0
 scrollPos = 0
 scrollDelay = -4
 buf_time = ''
-buf_title = ''
+buffTitleRaw = ''
 currTitle = ''
+buffTitle = ''
 timeReset = 0
 timeStr = 0
 timeBuff = 0
+stopFlag = Event()
+
+
+
+class LcdControl(Thread):
+
+    title = "RadioPi ;)"
+    idx = 0
+
+    def __init__(self, event):
+        Thread.__init__(self)
+        self.stopped = event
+
+    def run(self):
+        global timeBuff
+        while not self.stopped.wait(0.25):
+            if self.title != currTitle:
+                self.title = currTitle
+                self.idx = 0
+            if self.idx <= len(self.title):
+                lcd.writeString(self.title[self.idx:self.idx+16].ljust(16, ' '))
+                self.idx = self.idx + 1
+            else:
+                lcd.writeString(self.title[0:16])
+
+            # Calculate clock
+            timeStr = datetime.now().strftime('%b %d  %H:%M:%S')
+            if timeStr != timeBuff:
+                timeBuff = timeStr
+                lcd.writeString(timeBuff, 1)
 
 
 
 # Init mpc
 def mpcReset():
-    lcd.init()
     sub.Popen(['mpc', 'clear'])
     sub.Popen(['mpc', 'load', 'Internet Radio'])    # Make sure the playlist is available.
     sub.Popen(['mpc', 'repeat', 'on'])
     sub.Popen(['mpc', 'play'])
 
 def getTitle():
-    global currTitle
-    proc = sub.Popen(['mpc', 'current'], stdout=sub.PIPE)
+    global currTitle, buffTitleRaw
+    proc = sub.Popen(['mpc', '-f', '%name%_-_%artist%_-_%title%', 'current'], stdout=sub.PIPE)
     out, err = proc.communicate()
-
-    # Writing to I2C is slow though, so only write the title when it changed.
-    if (out != currTitle):
-        currTitle = out
+    if out != buffTitleRaw:
+        buffTitleRaw = out
+        # TODO: Switch display bij mp3, title eerst
+        mName, mArtist, mTitle = out.strip().split('_-_')
+        name1 = mName if len(mName) else mArtist
+        name2 = mTitle
+        currTitle = '%s - %s' % (name1, name2) if len(name1) and len(name2) else name1 if len(name1) else name2
 
 def btnPlay(_STATE=0):
-    global wait, STATE, scrollPos, scrollDelay
+    global STATE, currTitle
     STATE = _STATE
-    lcd.init()
-    scrollPos = scrollDelay
-
-mpcReset()
+    currTitle = ''
 
 
 
@@ -100,61 +132,25 @@ def btnPressed(channel):
         sub.Popen(['mpc', 'next'])
 
 
+
+mpcReset()
+thread = LcdControl(stopFlag)
+thread.start()
+
 GPIO.add_event_detect(BTN_PREV, GPIO.RISING, callback=btnPressed, bouncetime=200)
 GPIO.add_event_detect(BTN_NEXT, GPIO.RISING, callback=btnPressed, bouncetime=200)
 
-
-
-while True:
-
-    # Base actions on certain intervals
-    timeNow = time.time()
-
-    # Calculate clock
-    if (round(timeNow % 1) == 0):
-        timeStr = datetime.now().strftime('%b %d  %H:%M:%S')
-    else:
-        timeStr = datetime.now().strftime('%b %d  %H:%M %S')
-
-    # Write clock if buffer updated
-    if (timeStr != timeBuff):
-        timeBuff = timeStr
-
-        # Write clock to LCD if we're done scrolling.
-        if (scrollPos >= lcd.LCD_BUF_WIDTH):
-            lcd.writeString(timeStr, 1)
-        else:
-            lcd.writeString(' ', 1)
-
-
-    # Execute every 500 ms
-    if (timeNow > timeLoop):
-        timeLoop = timeNow + 0.5
-
-        # Scroll the contents of the display once.
-        if (scrollPos < lcd.LCD_BUF_WIDTH):
-            if (scrollPos >= 0):
-                lcd.scrollDisplayLeft()
-            scrollPos = scrollPos + 1
-
-    # Execute every 1000 ms
-    if (timeNow > timeLoopSec):
-        timeLoopSec = timeNow + 1.0
-
+try:
+    while True:
         # Get the title from MPC. Yes, we do this every second.
         # Sometimes it takes a second before the name is known.
         # And some streams change the title, kinda like RDS.
         getTitle()
-
-    # Write title to LCD only when buffer was updated
-    if (buf_title != currTitle):
-        if (wait == 0 and scrollPos == lcd.LCD_BUF_WIDTH):
-            scrollPos = 0
-            lcd.init()
-        else:
-            buf_title = currTitle
-            lcd.writeString(buf_title, 0)
-
-    # This loop needs to sleep as much as possible while still being snappy.
-    # Not sleeping makes the buttons very sensitive, but time() will be called too often, causing python to use 80% cpu.
-    time.sleep(0.10)
+        time.sleep(1.0)
+except KeyboardInterrupt:
+    stopFlag.set()
+    print 'User abort'
+except:
+    stopFlag.set()
+    print "\nUnexpected error:", sys.exc_info()[0]
+    raise

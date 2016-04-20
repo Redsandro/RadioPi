@@ -14,23 +14,23 @@
 import time
 import smbus
 
-class i2cYwRobotLcd:
+class i2cYwRobotLcd():
 
     # Decive parameters
     I2C_ADDR                = 0x27
-    LCD_WIDTH                = 16    # Maximum characters per line
-    LCD_BUF_WIDTH            = 40    # Buffer width
+    LCD_WIDTH               = 16    # Maximum characters per line
+    LCD_BUF_WIDTH           = 40    # Buffer width
 
     # Mode
-    LCD_CHR                    = 0b00000001    # Send character
-    LCD_CMD                    = 0b00000000    # Send data
+    LCD_CHR                 = 0b00000001    # Send character
+    LCD_CMD                 = 0b00000000    # Send data
 
-    LCD_LINES                = (0x80, 0xC0, 0x94, 0xD4)
+    LCD_LINES               = (0x80, 0xC0, 0x94, 0xD4)
 
     # Backlight control
-    LCD_ON                    = 0x08
-    LCD_OFF                    = 0x00
-    LCD_BACKLIGHT            = LCD_ON
+    LCD_ON                  = 0x08
+    LCD_OFF                 = 0x00
+    LCD_BACKLIGHT           = LCD_ON
 
     # Display controls
     LCD_DISPLAYON           = 0x04
@@ -41,7 +41,7 @@ class i2cYwRobotLcd:
     LCD_BLINKOFF            = 0x00
 
     # Timing constants
-    E_DELAY                    = 0.001
+    E_DELAY                 = 0.001
 
     # Commands
     LCD_CLEARDISPLAY        = 0x01
@@ -54,16 +54,16 @@ class i2cYwRobotLcd:
     LCD_SETDDRAMADDR        = 0x80
 
     # Display and cursor control
-    LCD_DISPLAYMOVE            = 0x08
-    LCD_CURSORMOVE            = 0x00
-    LCD_MOVERIGHT            = 0x04
+    LCD_DISPLAYMOVE         = 0x08
+    LCD_CURSORMOVE          = 0x00
+    LCD_MOVERIGHT           = 0x04
     LCD_MOVELEFT            = 0x00
-    CURSOR_OFF                = 0x0C
-    CURSOR_ON                = 0x0E
+    CURSOR_OFF              = 0x0C
+    CURSOR_ON               = 0x0E
 
     def __init__(self, addr=0x27, port=1):
 
-        self.I2C_ADDR        = addr
+        self.I2C_ADDR       = addr
 
         # Open I2C interface
         self.bus = smbus.SMBus(port)
