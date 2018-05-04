@@ -15,7 +15,7 @@ New titles will scroll once, then a clock appears for convenience.
 
 ---
 
-####Prerequisites
+#### Prerequisites
 
 `crontab -e`:
 
@@ -35,8 +35,12 @@ I had my `alsamixer` on max and I destroyed one amp. Better tone it down somewha
 /usr/bin/amixer set 'PCM',0 80% > /dev/null
 ```
 
-####License
+#### License
 
 Copyright 2013 – 2016 Sander Steenhuis [@Redsandro](https://twitter.com/Redsandro)
 
 Distributed under the GPL v2 license.
+
+#### Donate
+
+__Ƀ__ `1Dj21fUCtt3RXBWuoJ2TpzAyNmh2BU5YSL`
